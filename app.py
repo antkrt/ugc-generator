@@ -34,28 +34,30 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
     elif not avatar_file or not product_file:
         st.warning("Mohon unggah foto wajah dan foto produk!")
     else:
-        with st.spinner("Sedang memproses instruksi UGC..."):
+        with st.spinner("Sedang memproses instruksi UGC dengan model ringan..."):
             try:
                 genai.configure(api_key=api_key)
 
-                # Mendapatkan daftar model aktif dari API Key secara akurat
-                valid_models = [
-                    m.name
-                    for m in genai.list_models()
+                # Cari model versi ringan (flash) yang tersedia untuk akun Anda
+                available_models = [
+                    m.name for m in genai.list_models()
                     if "generateContent" in m.supported_generation_methods
                 ]
 
-                # Cari model versi flash yang valid
-                chosen_model = None
-                for model_name in valid_models:
-                    if "flash" in model_name.lower():
-                        chosen_model = model_name
+                # Prioritaskan model flash/ringan
+                target_model = None
+                for m in available_models:
+                    if "flash" in m.lower():
+                        target_model = m
                         break
 
-                if not chosen_model and valid_models:
-                    chosen_model = valid_models[0]
+                if not target_model and available_models:
+                    target_model = available_models[0]
 
-                model = genai.GenerativeModel(chosen_model)
+                # Bersihkan prefix "models/" jika ada agar kompatibel dengan SDK
+                clean_model_name = target_model.replace("models/", "") if target_model else "gemini-1.5-flash"
+                
+                model = genai.GenerativeModel(clean_model_name)
 
                 img_avatar = Image.open(avatar_file)
                 img_product = Image.open(product_file)
@@ -74,7 +76,7 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
                 )
 
                 st.success("Prompt UGC Berhasil Dibuat!")
-                st.caption(f"Engine Aktif: {chosen_model}")
+                st.caption(f"Model Ringan Digunakan: {clean_model_name}")
                 st.subheader("Hasil Prompt untuk Engine Gambar:")
                 st.code(response.text, language="text")
 
