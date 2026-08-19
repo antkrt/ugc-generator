@@ -12,6 +12,25 @@ st.write("Generator UGC berbasis AI - Gabungkan Wajah & Produk secara Otomatis")
 # Sidebar untuk API Key
 api_key = st.sidebar.text_input("Masukkan Gemini API Key", type="password")
 
+# Ambil daftar model aktif secara otomatis dari akun API Key
+selected_model_name = None
+if api_key:
+    try:
+        genai.configure(api_key=api_key)
+        available_models = [
+            m.name.replace("models/", "")
+            for m in genai.list_models()
+            if "generateContent" in m.supported_generation_methods
+        ]
+        if available_models:
+            selected_model_name = st.sidebar.selectbox(
+                "Pilih Model Gemini (Aktif)", available_models
+            )
+        else:
+            st.sidebar.warning("Tidak ada model yang ditemukan pada API Key ini.")
+    except Exception:
+        st.sidebar.error("API Key belum valid atau salah.")
+
 # Form Upload
 col1, col2 = st.columns(2)
 with col1:
@@ -34,30 +53,24 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
     elif not avatar_file or not product_file:
         st.warning("Mohon unggah foto wajah dan foto produk!")
     else:
-        with st.spinner("Sedang memproses instruksi UGC dengan model ringan..."):
+        with st.spinner("Sedang memproses instruksi UGC..."):
             try:
                 genai.configure(api_key=api_key)
 
-                # Cari model versi ringan (flash) yang tersedia untuk akun Anda
-                available_models = [
-                    m.name for m in genai.list_models()
-                    if "generateContent" in m.supported_generation_methods
+                # Buat daftar prioritas model (pilihan user + cadangan populer)
+                candidate_models = []
+                if selected_model_name:
+                    candidate_models.append(selected_model_name)
+
+                defaults = [
+                    "gemini-1.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-flash-latest",
+                    "gemini-1.5-pro",
                 ]
-
-                # Prioritaskan model flash/ringan
-                target_model = None
-                for m in available_models:
-                    if "flash" in m.lower():
-                        target_model = m
-                        break
-
-                if not target_model and available_models:
-                    target_model = available_models[0]
-
-                # Bersihkan prefix "models/" jika ada agar kompatibel dengan SDK
-                clean_model_name = target_model.replace("models/", "") if target_model else "gemini-1.5-flash"
-                
-                model = genai.GenerativeModel(clean_model_name)
+                for d in defaults:
+                    if d not in candidate_models:
+                        candidate_models.append(d)
 
                 img_avatar = Image.open(avatar_file)
                 img_product = Image.open(product_file)
@@ -71,14 +84,32 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
                 - Gaya Foto: Commercial UGC photography, 8k resolution, highly detailed texture, photorealistic, warm natural lighting, shot on 35mm lens, f/1.8.
                 """
 
-                response = model.generate_content(
-                    [img_avatar, img_product, system_instruction]
-                )
+                response = None
+                used_model = None
+                last_error = None
 
-                st.success("Prompt UGC Berhasil Dibuat!")
-                st.caption(f"Model Ringan Digunakan: {clean_model_name}")
-                st.subheader("Hasil Prompt untuk Engine Gambar:")
-                st.code(response.text, language="text")
+                # Sistem Fallback: coba setiap kandidat model sampai berhasil
+                for model_name in candidate_models:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(
+                            [img_avatar, img_product, system_instruction]
+                        )
+                        used_model = model_name
+                        break
+                    except Exception as err:
+                        last_error = err
+                        continue
+
+                if response and response.text:
+                    st.success("Prompt UGC Berhasil Dibuat!")
+                    st.caption(f"Model Aktif Digunakan: **{used_model}**")
+                    st.subheader("Hasil Prompt untuk Engine Gambar:")
+                    st.code(response.text, language="text")
+                else:
+                    st.error(
+                        f"Gagal memproses gambar. Detail error: {last_error}"
+                    )
 
             except Exception as e:
-                st.error(f"Terjadi kesalahan: {e}")
+                st.error(f"Terjadi kesalahan sistem: {e}")
