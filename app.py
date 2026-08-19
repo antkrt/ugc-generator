@@ -38,18 +38,8 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
             try:
                 genai.configure(api_key=api_key)
 
-                # Deteksi model aktif secara otomatis untuk mencegah error NotFound
-                active_model_name = None
-                for m in genai.list_models():
-                    if 'generateContent' in m.supported_generation_methods:
-                        if 'flash' in m.name:
-                            active_model_name = m.name
-                            break
-
-                if not active_model_name:
-                    active_model_name = "models/gemini-1.5-flash"
-
-                model = genai.GenerativeModel(active_model_name)
+                # Menggunakan model flash versi terbaru yang didukung
+                model = genai.GenerativeModel("gemini-1.5-flash")
 
                 img_avatar = Image.open(avatar_file)
                 img_product = Image.open(product_file)
@@ -68,7 +58,6 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
                 )
 
                 st.success("Prompt UGC Berhasil Dibuat!")
-                st.caption(f"Menggunakan Engine: {active_model_name}")
                 st.subheader("Hasil Prompt untuk Engine Gambar:")
                 st.code(response.text, language="text")
 
