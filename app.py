@@ -38,7 +38,7 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
             try:
                 genai.configure(api_key=api_key)
 
-                # 1. Deteksi model yang BENAR-BENAR aktif di akun Anda
+                # Deteksi model yang aktif di akun API Key
                 available_models = []
                 for m in genai.list_models():
                     if "generateContent" in m.supported_generation_methods:
@@ -67,7 +67,7 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
                 success_model = None
                 last_error = None
 
-                # 2. Coba jalankan hanya menggunakan model resmi dari akun Anda
+                # Coba jalankan menggunakan model resmi dari akun
                 for model_name in available_models:
                     try:
                         model = genai.GenerativeModel(model_name)
@@ -89,32 +89,4 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
                     st.error(f"Gagal memproses. Detail error: {last_error}")
 
             except Exception as e:
-                st.error(f"Terjadi kesalahan koneksi API Key: {e}")                response = None
-                used_model = None
-                last_error = None
-
-                # Sistem Fallback: coba setiap kandidat model sampai berhasil
-                for model_name in candidate_models:
-                    try:
-                        model = genai.GenerativeModel(model_name)
-                        response = model.generate_content(
-                            [img_avatar, img_product, system_instruction]
-                        )
-                        used_model = model_name
-                        break
-                    except Exception as err:
-                        last_error = err
-                        continue
-
-                if response and response.text:
-                    st.success("Prompt UGC Berhasil Dibuat!")
-                    st.caption(f"Model Aktif Digunakan: **{used_model}**")
-                    st.subheader("Hasil Prompt untuk Engine Gambar:")
-                    st.code(response.text, language="text")
-                else:
-                    st.error(
-                        f"Gagal memproses gambar. Detail error: {last_error}"
-                    )
-
-            except Exception as e:
-                st.error(f"Terjadi kesalahan sistem: {e}")
+                st.error(f"Terjadi kesalahan koneksi API Key: {e}")
