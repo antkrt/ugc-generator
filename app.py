@@ -35,24 +35,42 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
         st.warning("Mohon unggah foto wajah dan foto produk!")
     else:
         with st.spinner("Sedang memproses instruksi UGC..."):
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash-latest") 
-            img_avatar = Image.open(avatar_file)
-            img_product = Image.open(product_file)
+            try:
+                genai.configure(api_key=api_key)
 
-            system_instruction = f"""
-            Analisis kedua gambar berikut. Gambar 1 adalah foto wajah subjek, Gambar 2 adalah produk/pakaian.
-            Buatlah deskripsi prompt gambar UGC ultra-realistis dalam bahasa Inggris dengan rincian:
-            - Subjek: Mempertahankan bentuk wajah dan ekspresi dari Gambar 1.
-            - Pakaian: Memakai produk/pakaian dari Gambar 2 secara alami.
-            - Latar belakang & Suasana: {prompt_input}.
-            - Gaya Foto: Commercial UGC photography, 8k resolution, highly detailed texture, photorealistic, warm natural lighting, shot on 35mm lens, f/1.8.
-            """
+                # Deteksi model aktif secara otomatis untuk mencegah error NotFound
+                active_model_name = None
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        if 'flash' in m.name:
+                            active_model_name = m.name
+                            break
 
-            response = model.generate_content(
-                [img_avatar, img_product, system_instruction]
-            )
+                if not active_model_name:
+                    active_model_name = "models/gemini-1.5-flash"
 
-            st.success("Prompt UGC Berhasil Dibuat!")
-            st.subheader("Hasil Prompt untuk Engine Gambar:")
-            st.code(response.text, language="text")
+                model = genai.GenerativeModel(active_model_name)
+
+                img_avatar = Image.open(avatar_file)
+                img_product = Image.open(product_file)
+
+                system_instruction = f"""
+                Analisis kedua gambar berikut. Gambar 1 adalah foto wajah subjek, Gambar 2 adalah produk/pakaian.
+                Buatlah deskripsi prompt gambar UGC ultra-realistis dalam bahasa Inggris dengan rincian:
+                - Subjek: Mempertahankan bentuk wajah dan ekspresi dari Gambar 1.
+                - Pakaian: Memakai produk/pakaian dari Gambar 2 secara alami.
+                - Latar belakang & Suasana: {prompt_input}.
+                - Gaya Foto: Commercial UGC photography, 8k resolution, highly detailed texture, photorealistic, warm natural lighting, shot on 35mm lens, f/1.8.
+                """
+
+                response = model.generate_content(
+                    [img_avatar, img_product, system_instruction]
+                )
+
+                st.success("Prompt UGC Berhasil Dibuat!")
+                st.caption(f"Menggunakan Engine: {active_model_name}")
+                st.subheader("Hasil Prompt untuk Engine Gambar:")
+                st.code(response.text, language="text")
+
+            except Exception as e:
+                st.error(f"Terjadi kesalahan: {e}")
