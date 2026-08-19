@@ -1,4 +1,6 @@
+import re
 import urllib.parse
+import urllib.request
 import google.generativeai as genai
 from PIL import Image
 import streamlit as st
@@ -34,11 +36,10 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
     elif not avatar_file or not product_file:
         st.warning("Mohon unggah foto wajah dan foto produk!")
     else:
-        with st.spinner("1/2 Menganalisis struktur wajah & produk..."):
+        with st.spinner("1/2 Menganalisis wajah & produk..."):
             try:
                 genai.configure(api_key=api_key)
 
-                # Deteksi model aktif dari akun
                 available_models = [
                     m.name.replace("models/", "")
                     for m in genai.list_models()
@@ -54,12 +55,12 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
 
                 system_instruction = f"""
                 Analisis foto wajah (Gambar 1) dan produk (Gambar 2).
-                Buat 1 kalimat prompt ringkas dalam bahasa Inggris untuk generator gambar.
-                Format: A photo of an Indonesian person with the face from Image 1, wearing the outfit from Image 2, sitting at {prompt_input}, 8k resolution, highly detailed, photorealistic, warm lighting, shot on 35mm lens.
-                Tulis HANYA kalimat prompt Inggris tersebut tanpa karakter lain.
+                Buatlah 1 kalimat deskripsi prompt dalam bahasa Inggris tanpa tanda baca aneh.
+                Contoh hasil: A photorealistic commercial portrait of an Indonesian person wearing the outfit from Image 2, sitting at {prompt_input}, 8k resolution, warm ambient lighting.
+                PENTING: Jangan gunakan bullet points, jangan gunakan tanda bintang (*), dan jangan gunakan baris baru.
                 """
 
-                prompt_text = ""
+                raw_prompt = ""
                 for model_name in available_models:
                     try:
                         model = genai.GenerativeModel(model_name)
@@ -67,31 +68,43 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
                             [img_avatar, img_product, system_instruction]
                         )
                         if res.text:
-                            prompt_text = res.text.strip()
+                            raw_prompt = res.text
                             break
                     except Exception:
                         continue
 
-                if not prompt_text:
-                    st.error("Gagal menyusun instruksi visual dari gambar.")
-                    st.stop()
+                # Membersihkan teks dari simbol markdown, asterisk, dan enter agar URL tidak rusak
+                prompt_clean = re.sub(r"[^a-zA-Z0-9\s,.]", "", raw_prompt)
+                prompt_clean = " ".join(prompt_clean.split())
+
+                if len(prompt_clean) < 10:
+                    prompt_clean = f"A photorealistic portrait of a person wearing stylish clothes sitting at {prompt_input}, 8k resolution, warm lighting"
 
                 st.info("2/2 Memproses rendering foto UGC...")
 
-                # Mengirim prompt ke Image Engine (Flux Engine)
-                encoded_prompt = urllib.parse.quote(prompt_text)
+                # Mengirim prompt bersih ke Image Engine
+                encoded_prompt = urllib.parse.quote(prompt_clean)
                 image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1920&nologo=true&model=flux"
 
-                # Menampilkan FOTO LANGSUNG di aplikasi
+                # Mengunduh file gambar ke memori secara langsung
+                req = urllib.request.Request(
+                    image_url, headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with urllib.request.urlopen(req, timeout=45) as response:
+                    image_bytes = response.read()
+
+                # Menampilkan FOTO LANGSUNG dari data gambar
                 st.image(
-                    image_url,
+                    image_bytes,
                     caption="Hasil Render Foto UGC (Rasio 9:16)",
                     use_container_width=True,
                 )
                 st.success("Foto UGC Berhasil Digenerate!")
 
                 with st.expander("Lihat Detail Prompt"):
-                    st.code(prompt_text)
+                    st.write(prompt_clean)
 
             except Exception as e:
-                st.error(f"Terjadi kesalahan: {e}")
+                st.error(
+                    f"Gagal memuat gambar: {e}. Silakan tekan tombol Generate sekali lagi."
+                )
