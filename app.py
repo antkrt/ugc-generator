@@ -36,8 +36,7 @@ if st.button("🚀 GENERATE MASTERPIECE", use_container_width=True):
     else:
         with st.spinner("Sedang memproses instruksi UGC..."):
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-
+            model = genai.GenerativeModel("gemini-1.5-flash-latest") 
             img_avatar = Image.open(avatar_file)
             img_product = Image.open(product_file)
 
